@@ -955,4 +955,139 @@ try {
   });
 } catch (error) {
   console.log('启动DOM观察时出错:', error);
+}
+
+// 为所有输入元素添加XPath按钮
+function addXPathButtonsToInputs() {
+  console.log('[content] 开始为输入元素添加Autofill按钮');
+  
+  // 获取所有输入元素
+  const inputs = document.querySelectorAll('input, textarea, select');
+  
+  // 为每个输入元素添加按钮
+  inputs.forEach((input, index) => {
+    // 创建按钮
+    const button = document.createElement('button');
+    button.innerText = 'Autofill';
+    button.title = '点击自动填充此表单元素';
+    button.style.cssText = `
+      font-size: 11px;
+      padding: 2px 5px;
+      margin-left: 5px;
+      background: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      z-index: 9999;
+    `;
+    
+    // 添加点击事件
+    button.addEventListener('click', function(event) {
+      event.stopPropagation();
+      const xpath = getElementXPath(input);
+      console.log('[content] 元素XPath:', xpath);
+      
+      // 创建一个弹出提示框显示XPath
+      const toast = document.createElement('div');
+      toast.innerText = xpath;
+      toast.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 10px 15px;
+        border-radius: 5px;
+        z-index: 10000;
+        font-family: monospace;
+        max-width: 80%;
+        word-break: break-all;
+      `;
+      document.body.appendChild(toast);
+      
+      // 点击提示框关闭
+      toast.addEventListener('click', function() {
+        document.body.removeChild(toast);
+      });
+      
+      // 复制到剪贴板
+      try {
+        navigator.clipboard.writeText(xpath)
+          .then(() => {
+            console.log('[content] XPath已复制到剪贴板');
+            
+            // 修改提示框内容，表示已复制
+            toast.innerText = `${xpath}\n(已复制到剪贴板，点击关闭)`;
+          })
+          .catch(err => {
+            console.error('[content] 复制到剪贴板失败:', err);
+          });
+      } catch (e) {
+        console.error('[content] 复制XPath出错:', e);
+      }
+      
+      // 5秒后自动关闭
+      setTimeout(() => {
+        if (document.body.contains(toast)) {
+          document.body.removeChild(toast);
+        }
+      }, 5000);
+    });
+    
+    // 判断元素是否已显示，避免重复添加
+    const buttonId = `xpath-btn-${index}`;
+    if (!document.getElementById(buttonId)) {
+      button.id = buttonId;
+      
+      // 将按钮插入到元素后面
+      if (input.parentNode) {
+        // 创建一个包装容器，避免破坏页面布局
+        const wrapper = document.createElement('span');
+        wrapper.style.cssText = 'display: inline-block; vertical-align: middle;';
+        wrapper.appendChild(button);
+        
+        // 找到元素的下一个兄弟节点作为参考
+        const nextSibling = input.nextSibling;
+        if (nextSibling) {
+          input.parentNode.insertBefore(wrapper, nextSibling);
+        } else {
+          input.parentNode.appendChild(wrapper);
+        }
+      }
+    }
+  });
+  
+  console.log('[content] Autofill按钮添加完成');
+}
+
+// 在页面加载完成和DOM变化时添加按钮
+function initXPathButtons() {
+  // 页面加载完成后添加按钮
+  addXPathButtonsToInputs();
+  
+  // 使用MutationObserver监听DOM变化
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.addedNodes.length > 0) {
+        // DOM发生变化，重新添加按钮
+        addXPathButtonsToInputs();
+      }
+    });
+  });
+  
+  // 开始观察整个文档
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+}
+
+// 在页面准备就绪时初始化
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initXPathButtons);
+} else {
+  initXPathButtons();
 } 
