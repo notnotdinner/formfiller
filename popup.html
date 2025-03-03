@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>智能表单填写助手</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- 直接在HTML中添加测试按钮 -->
+    <button id="testButton" style="background-color: #ff0000; color: white; padding: 10px 20px; border: none; border-radius: 4px; font-weight: bold; margin: 10px 0; display: block; width: 100%;">测试按钮</button>
+
+    <!-- 添加登录按钮和刷新按钮 -->
+    <div class="login-section">
+      <button id="refreshButton" class="refresh-button header-button">刷新元素</button>
+      <button id="loginButton" class="login-button">登录账号</button>
+      <span id="loginStatus" class="login-status"></span>
+    </div>
+
+    <!-- 登录模态框 -->
+    <div id="loginModal" class="modal">
+      <div class="modal-content">
+        <span class="close-button">&times;</span>
+        <h2>用户登录</h2>
+        <div class="login-form">
+          <div class="form-group">
+            <label for="username">用户名:</label>
+            <input type="text" id="username" placeholder="请输入用户名">
+          </div>
+          <div class="form-group">
+            <label for="password">密码:</label>
+            <input type="password" id="password" placeholder="请输入密码">
+          </div>
+          <button id="submitLogin">登录</button>
+          <div id="loginMessage" class="login-message"></div>
+        </div>
+      </div>
+    </div>
+
+    <h1>智能表单填写助手</h1>
+    
+    <div class="input-section">
+      <label for="textInput">输入包含表单信息的文本：</label>
+      <textarea id="textInput" rows="6" placeholder="例如：我叫张三，电话是13812345678，邮箱是zhangsan@example.com"></textarea>
+    </div>
+    
+    <div class="buttons">
+      <button id="extractButton">提取信息</button>
+      <button id="fillButton" disabled>填写表单</button>
+    </div>
+    
+    <div class="result-section">
+      <h2>提取结果</h2>
+      <div id="extractResult" class="result-display">
+        <p class="placeholder">提取的信息将显示在这里...</p>
+      </div>
+    </div>
+    
+    <div class="status-section">
+      <p id="statusMessage"></p>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html> 

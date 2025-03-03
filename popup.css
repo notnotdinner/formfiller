@@ -1,0 +1,541 @@
+body {
+  font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f8f9fa;
+  color: #333;
+}
+
+.container {
+  width: 380px;
+  padding: 16px;
+}
+
+h1 {
+  font-size: 18px;
+  color: #1a73e8;
+  margin-top: 0;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+h2 {
+  font-size: 16px;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  color: #5f6368;
+}
+
+.input-section {
+  margin-bottom: 16px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #5f6368;
+}
+
+textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: #1a73e8;
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+button {
+  flex: 1;
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #0d65d9;
+}
+
+button:disabled {
+  background-color: #dadce0;
+  color: #5f6368;
+  cursor: not-allowed;
+}
+
+.result-section {
+  background-color: #ffffff;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.result-display {
+  font-size: 14px;
+  min-height: 80px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.placeholder {
+  color: #9aa0a6;
+  font-style: italic;
+}
+
+.field-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  padding: 4px 0;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.field-name {
+  font-weight: bold;
+  color: #5f6368;
+}
+
+.field-value {
+  color: #1a73e8;
+}
+
+.status-section {
+  font-size: 13px;
+  color: #5f6368;
+  text-align: center;
+}
+
+#statusMessage.success {
+  color: #188038;
+}
+
+#statusMessage.error {
+  color: #d93025;
+}
+
+/* 表单字段展示样式 */
+.form-fields-container {
+  margin-bottom: 15px;
+  background-color: #f5f5f5;
+  border-radius: 5px;
+  padding: 10px;
+}
+
+.form-fields-container h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #333;
+}
+
+.form-fields-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.form-field-item {
+  background-color: #e1f5fe;
+  border: 1px solid #b3e5fc;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.field-label {
+  font-weight: bold;
+  margin-right: 4px;
+}
+
+.field-type {
+  color: #666;
+  font-size: 11px;
+}
+
+.processing-message {
+  font-style: italic;
+  color: #666;
+  margin: 8px 0 0 0;
+  font-size: 12px;
+}
+
+.info {
+  color: #0277bd;
+  background-color: #e1f5fe;
+}
+
+/* 登录部分 */
+.login-section {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 15px;
+  padding: 8px 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* 两个顶部按钮的共同样式 */
+.login-button, .refresh-button.header-button {
+  padding: 6px 12px;
+  background-color: #4285f4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-width: 80px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-button:hover, .refresh-button.header-button:hover {
+  background-color: #3367d6;
+}
+
+/* 刷新按钮特定样式 */
+.refresh-button.header-button:before {
+  content: "\21BB"; /* 循环箭头符号 */
+  margin-right: 5px;
+  font-size: 14px;
+}
+
+/* 登录状态样式 */
+.login-status {
+  font-size: 12px;
+  color: #4285f4;
+  margin-left: auto;
+}
+
+/* 移除旧样式 */
+.header-button {
+  display: none;
+}
+
+.refresh-button-container {
+  display: none;
+}
+
+.refresh-button.fixed {
+  display: none;
+}
+
+/* 标题容器样式 - 保留但隐藏 */
+.title-container {
+  display: none; /* 隐藏旧的标题容器 */
+}
+
+/* 模态框样式 */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  background-color: white;
+  margin: 15% auto;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  width: 80%;
+  max-width: 300px;
+  position: relative;
+}
+
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 20px;
+  font-weight: bold;
+  color: #888;
+  cursor: pointer;
+}
+
+.close-button:hover {
+  color: #333;
+}
+
+/* 登录表单样式 */
+.login-form {
+  margin-top: 15px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.login-message {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #d93025;
+  text-align: center;
+}
+
+/* 登录成功状态 */
+.logged-in {
+  color: #0f9d58;
+}
+
+/* 输入元素表格 */
+.table-container {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.input-elements-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+}
+
+.input-elements-table th,
+.input-elements-table td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.input-elements-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.input-elements-table tr:hover {
+  background-color: #f0f7ff;
+}
+
+.input-elements-table .xpath-cell {
+  max-width: 150px;
+}
+
+.input-elements-table .texts-cell {
+  max-width: 200px;
+}
+
+/* 表格按钮容器 */
+.table-buttons-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+  padding: 5px;
+}
+
+/* 复制按钮样式 */
+.copy-button {
+  padding: 8px 15px;
+  font-size: 14px;
+  background-color: #4285f4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}
+
+.copy-button:hover {
+  background-color: #3367d6;
+}
+
+.copy-button:before {
+  content: "\1F4CB"; /* 剪贴板符号 */
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+/* 成功状态样式 */
+.status-success {
+  color: #0f9d58;
+}
+
+/* 错误状态样式 */
+.status-error {
+  color: #d93025;
+}
+
+/* 信息状态样式 */
+.status-info {
+  color: #4285f4;
+}
+
+/* 为刷新按钮添加涟漪效果 */
+.ripple {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+/* 确保刷新按钮样式正确 */
+.refresh-button {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  margin-right: 10px;
+  min-width: 100px;
+}
+
+/* 强制显示刷新按钮 */
+.refresh-button.header-button {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* 确保状态消息显示清晰 */
+#statusMessage {
+  margin-top: 10px;
+  padding: 5px;
+  font-weight: bold;
+  border-radius: 3px;
+  background-color: #f0f0f0;
+  min-height: 20px;
+}
+
+/* 状态消息样式 */
+.status-message {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  display: block;
+  text-align: center;
+}
+
+.status-success {
+  background-color: rgba(76, 175, 80, 0.1);
+  border-left: 4px solid #4caf50;
+}
+
+.status-error {
+  background-color: rgba(244, 67, 54, 0.1);
+  border-left: 4px solid #f44336;
+}
+
+.status-warning {
+  background-color: rgba(255, 152, 0, 0.1);
+  border-left: 4px solid #ff9800;
+}
+
+.status-info {
+  background-color: rgba(33, 150, 243, 0.1);
+  border-left: 4px solid #2196f3;
+}
+
+/* 刷新按钮样式 */
+.refresh-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.refresh-button:hover {
+  background-color: #0b7dda;
+}
+
+.refresh-button:active {
+  background-color: #0a6fc7;
+  transform: translateY(1px);
+}
+
+/* 按钮波纹效果 */
+.ripple {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+  pointer-events: none;
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+} 
