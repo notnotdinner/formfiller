@@ -569,28 +569,29 @@ class TextFinder {
   constructor(element) {
     this.element = element;
     this.processedNodes = new Set();
-    this.maxResults = 1; // 设置最多返回3个文本
+    this.maxResults = 3; // 设置最多返回3个文本
   }
   
   findNearbyTexts() {
-    console.log('[content] 开始查找元素前面的显示文本:', this.element.tagName, this.element.id || '无ID');
-    const texts = [];
+    console.log('[content] 开始查找元素周围的显示文本:', this.element.tagName, this.element.id || '无ID');
     
+    // 前面的文本
+    const textsBefore = [];
     // 1. 从元素开始，查找前面的文本节点
-    this.findVisibleTextsBeforeElement(this.element, texts);
+    this.findVisibleTextsBeforeElement(this.element, textsBefore);
     
     // 2. 查找关联的label（这是明确与input关联的文本）
     const id = this.element.id;
-    if (id && texts.length < this.maxResults) {
+    if (id && textsBefore.length < this.maxResults) {
       const labels = document.querySelectorAll(`label[for="${id}"]`);
       if (labels && labels.length > 0) {
         for (const label of labels) {
           if (isElementVisible(label)) {
             const text = label.textContent.trim();
-            if (text && !texts.includes(text)) {
+            if (text && !textsBefore.includes(text)) {
               console.log('[content] 找到label文本:', text);
-              texts.push(text);
-              if (texts.length >= this.maxResults) break;
+              textsBefore.push(text);
+              if (textsBefore.length >= this.maxResults) break;
             }
           }
         }
@@ -598,29 +599,44 @@ class TextFinder {
     }
     
     // 3. 如果是嵌套在label中的input，提取label的文本
-    if (texts.length < this.maxResults && this.element.closest('label')) {
+    if (textsBefore.length < this.maxResults && this.element.closest('label')) {
       const wrapperLabel = this.element.closest('label');
       // 只提取label中input之前的文本
       const text = this.getTextBeforeElementInParent(this.element, wrapperLabel);
-      if (text && !texts.includes(text)) {
+      if (text && !textsBefore.includes(text)) {
         console.log('[content] 找到包裹label文本:', text);
-        texts.push(text);
+        textsBefore.push(text);
       }
     }
     
     // 4. 如果仍未找到足够的文本，尝试从DOM位置查找
-    if (texts.length < this.maxResults) {
-      this.findPrecedingTextNodesByPosition(this.element, texts);
+    if (textsBefore.length < this.maxResults) {
+      this.findPrecedingTextNodesByPosition(this.element, textsBefore);
     }
     
-    // 记录结果
-    if (texts.length > 0) {
-      console.log('[content] 找到的元素前面的文本:', texts);
+    // 记录前面的文本结果
+    if (textsBefore.length > 0) {
+      console.log('[content] 找到的元素前面的文本:', textsBefore);
     } else {
       console.log('[content] 未找到元素前面的文本');
     }
     
-    return texts;
+    // 后面的文本
+    const textsAfter = [];
+    // 5. 查找元素后面的文本
+    this.findVisibleTextsAfterElement(this.element, textsAfter);
+    
+    // 记录后面的文本结果
+    if (textsAfter.length > 0) {
+      console.log('[content] 找到的元素后面的文本:', textsAfter);
+    } else {
+      console.log('[content] 未找到元素后面的文本');
+    }
+    
+    return {
+      before: textsBefore,
+      after: textsAfter
+    };
   }
   
   // 查找元素前面的可见文本节点
@@ -836,6 +852,71 @@ class TextFinder {
     
     return result.trim();
   }
+  
+  // 获取元素后面的文本
+  findVisibleTextsAfterElement(element, texts) {
+    if (!element || texts.length >= this.maxResults) return;
+    
+    console.log('[content] 寻找元素后面的文本:', element.tagName);
+    
+    // 1. 首先尝试获取元素的下一个同级节点
+    let nextSibling = element.nextSibling;
+    while (nextSibling && texts.length < this.maxResults) {
+      if (nextSibling.nodeType === Node.TEXT_NODE) {
+        const text = nextSibling.textContent.trim();
+        if (text && !texts.includes(text)) {
+          texts.push(text);
+          console.log('[content] 找到后面的文本节点:', text);
+        }
+      } else if (nextSibling.nodeType === Node.ELEMENT_NODE && isElementVisible(nextSibling)) {
+        const text = nextSibling.textContent.trim();
+        if (text && !texts.includes(text)) {
+          texts.push(text);
+          console.log('[content] 找到后面的元素节点文本:', text);
+        }
+      }
+      nextSibling = nextSibling.nextSibling;
+    }
+    
+    // 2. 如果还没找到足够的文本，递归向上找父元素的后续元素
+    if (texts.length < this.maxResults && element.parentNode && element.parentNode !== document.body) {
+      // 找到父元素节点中当前元素的下一个兄弟节点
+      const parent = element.parentNode;
+      const parentNextSibling = parent.nextSibling;
+      
+      if (parentNextSibling) {
+        this.findTextInNode(parentNextSibling, texts);
+      }
+      
+      // 递归向上查找
+      this.findVisibleTextsAfterElement(parent, texts);
+    }
+  }
+  
+  // 辅助函数：从节点中提取文本
+  findTextInNode(node, texts) {
+    if (!node || texts.length >= this.maxResults) return;
+    
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent.trim();
+      if (text && !texts.includes(text)) {
+        texts.push(text);
+      }
+    } else if (node.nodeType === Node.ELEMENT_NODE && isElementVisible(node)) {
+      // 如果是可见的元素节点
+      if (node.childNodes.length === 0) {
+        const text = node.textContent.trim();
+        if (text && !texts.includes(text)) {
+          texts.push(text);
+        }
+      } else {
+        // 遍历子节点
+        for (let i = 0; i < node.childNodes.length && texts.length < this.maxResults; i++) {
+          this.findTextInNode(node.childNodes[i], texts);
+        }
+      }
+    }
+  }
 }
 
 // 从文本推断字段名称
@@ -986,55 +1067,52 @@ function addXPathButtonsToInputs() {
     // 添加点击事件
     button.addEventListener('click', function(event) {
       event.stopPropagation();
+      
+      // 获取元素XPath
       const xpath = getElementXPath(input);
       console.log('[content] 元素XPath:', xpath);
       
-      // 创建一个弹出提示框显示XPath
-      const toast = document.createElement('div');
-      toast.innerText = xpath;
-      toast.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 10px 15px;
-        border-radius: 5px;
-        z-index: 10000;
-        font-family: monospace;
-        max-width: 80%;
-        word-break: break-all;
-      `;
-      document.body.appendChild(toast);
+      // 获取元素前后的文本
+      const textFinder = new TextFinder(input);
+      const texts = textFinder.findNearbyTexts();
       
-      // 点击提示框关闭
-      toast.addEventListener('click', function() {
-        document.body.removeChild(toast);
-      });
+      // 创建文本内容
+      let contentHTML = '';
       
-      // 复制到剪贴板
-      try {
-        navigator.clipboard.writeText(xpath)
-          .then(() => {
-            console.log('[content] XPath已复制到剪贴板');
-            
-            // 修改提示框内容，表示已复制
-            toast.innerText = `${xpath}\n(已复制到剪贴板，点击关闭)`;
-          })
-          .catch(err => {
-            console.error('[content] 复制到剪贴板失败:', err);
-          });
-      } catch (e) {
-        console.error('[content] 复制XPath出错:', e);
+      // 添加前面文本
+      contentHTML += '<div style="margin-bottom:10px;"><strong>前面的文本:</strong><ul style="margin:5px 0;padding-left:20px;">';
+      if (texts.before.length > 0) {
+        texts.before.forEach(text => {
+          contentHTML += `<li>"${text}"</li>`;
+        });
+      } else {
+        contentHTML += '<li>未找到文本</li>';
       }
+      contentHTML += '</ul></div>';
       
-      // 5秒后自动关闭
-      setTimeout(() => {
-        if (document.body.contains(toast)) {
-          document.body.removeChild(toast);
-        }
-      }, 5000);
+      // 添加后面文本
+      contentHTML += '<div><strong>后面的文本:</strong><ul style="margin:5px 0;padding-left:20px;">';
+      if (texts.after.length > 0) {
+        texts.after.forEach(text => {
+          contentHTML += `<li>"${text}"</li>`;
+        });
+      } else {
+        contentHTML += '<li>未找到文本</li>';
+      }
+      contentHTML += '</ul></div>';
+
+      console.log(contentHTML);
+
+    // 将文本封装成JSON格式
+    const textData = {
+      beforeTexts: texts.before || [],
+      afterTexts: texts.after || []
+    };
+    
+    // 转换为JSON字符串
+    const jsonData = JSON.stringify(textData, null, 2);
+    
+    console.log('[content] 文本数据JSON格式:', jsonData);
     });
     
     // 判断元素是否已显示，避免重复添加
