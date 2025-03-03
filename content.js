@@ -479,6 +479,7 @@ function getAllInputElements() {
     // 尝试查找相邻的标签文本
     try {
       const textFinder = new TextFinder(input);
+      // 使用新的方法查找前面的可见文本
       const nearTexts = textFinder.findNearbyTexts();
       info.nearTexts = nearTexts;
       
@@ -490,7 +491,7 @@ function getAllInputElements() {
         info.fieldName = inferFieldNameFromAttributes(input);
       }
     } catch (e) {
-      console.error('[content] 获取相邻文本出错:', e);
+      console.error('[content] 获取前面文本出错:', e);
       info.nearTexts = [];
       info.fieldName = '';
     }
@@ -506,12 +507,23 @@ function getAllInputElements() {
 function isElementVisible(element) {
   if (!element) return false;
   
-  const style = window.getComputedStyle(element);
-  return style.display !== 'none' && 
-         style.visibility !== 'hidden' && 
-         style.opacity !== '0' &&
-         element.offsetWidth > 0 && 
-         element.offsetHeight > 0;
+  // 文本节点直接返回true，因为它们的可见性取决于父元素
+  if (element.nodeType === Node.TEXT_NODE) {
+    // 确保文本内容不为空
+    return element.textContent.trim() !== '';
+  }
+  
+  // 元素节点的可见性检查
+  try {
+    const style = window.getComputedStyle(element);
+    return style.display !== 'none' && 
+           style.visibility !== 'hidden' && 
+           style.opacity !== '0' &&
+           element.offsetWidth > 0 && 
+           element.offsetHeight > 0;
+  } catch (e) {
+    return false;
+  }
 }
 
 // 获取元素的XPath
@@ -557,139 +569,272 @@ class TextFinder {
   constructor(element) {
     this.element = element;
     this.processedNodes = new Set();
-    this.maxResults = 5; // 增加最大结果数量
+    this.maxResults = 1; // 设置最多返回3个文本
   }
   
   findNearbyTexts() {
-    console.log('[content] 查找元素附近文本:', this.element.tagName, this.element.id || '无ID');
+    console.log('[content] 开始查找元素前面的显示文本:', this.element.tagName, this.element.id || '无ID');
     const texts = [];
     
-    // 1. 尝试找关联label
+    // 1. 从元素开始，查找前面的文本节点
+    this.findVisibleTextsBeforeElement(this.element, texts);
+    
+    // 2. 查找关联的label（这是明确与input关联的文本）
     const id = this.element.id;
-    if (id) {
+    if (id && texts.length < this.maxResults) {
       const labels = document.querySelectorAll(`label[for="${id}"]`);
       if (labels && labels.length > 0) {
         for (const label of labels) {
-          const text = label.textContent.trim();
-          if (text) {
-            console.log('[content] 找到label文本:', text);
-            texts.push(text);
+          if (isElementVisible(label)) {
+            const text = label.textContent.trim();
+            if (text && !texts.includes(text)) {
+              console.log('[content] 找到label文本:', text);
+              texts.push(text);
+              if (texts.length >= this.maxResults) break;
+            }
           }
         }
       }
     }
     
-    // 2. 查找包裹input的label
-    if (this.element.closest('label')) {
+    // 3. 如果是嵌套在label中的input，提取label的文本
+    if (texts.length < this.maxResults && this.element.closest('label')) {
       const wrapperLabel = this.element.closest('label');
-      const text = this.extractTextFromNode(wrapperLabel, this.element);
-      if (text) {
+      // 只提取label中input之前的文本
+      const text = this.getTextBeforeElementInParent(this.element, wrapperLabel);
+      if (text && !texts.includes(text)) {
         console.log('[content] 找到包裹label文本:', text);
         texts.push(text);
       }
     }
     
-    // 3. 检查父元素内的文本
-    let parent = this.element.parentElement;
-    if (parent) {
-      const text = this.extractTextFromNode(parent, this.element);
-      if (text) {
-        console.log('[content] 找到父元素文本:', text);
-        texts.push(text);
-      }
-    }
-    
-    // 4. 查找同级元素中的文本
-    this.findAdjacentTexts(this.element, texts);
-    
-    // 5. 查找placeholder作为备选
-    const placeholder = this.element.getAttribute('placeholder');
-    if (placeholder && placeholder.trim() && !texts.includes(placeholder.trim())) {
-      console.log('[content] 找到placeholder:', placeholder);
-      texts.push(placeholder.trim());
-    }
-    
-    // 6. 查找title/aria-label作为备选
-    const ariaLabel = this.element.getAttribute('aria-label');
-    if (ariaLabel && ariaLabel.trim() && !texts.includes(ariaLabel.trim())) {
-      console.log('[content] 找到aria-label:', ariaLabel);
-      texts.push(ariaLabel.trim());
-    }
-    
-    const title = this.element.getAttribute('title');
-    if (title && title.trim() && !texts.includes(title.trim())) {
-      console.log('[content] 找到title:', title);
-      texts.push(title.trim());
+    // 4. 如果仍未找到足够的文本，尝试从DOM位置查找
+    if (texts.length < this.maxResults) {
+      this.findPrecedingTextNodesByPosition(this.element, texts);
     }
     
     // 记录结果
     if (texts.length > 0) {
-      console.log('[content] 找到的相关文本:', texts);
+      console.log('[content] 找到的元素前面的文本:', texts);
     } else {
-      console.log('[content] 未找到任何相关文本');
+      console.log('[content] 未找到元素前面的文本');
     }
     
-    return texts.slice(0, this.maxResults);
+    return texts;
   }
   
-  findAdjacentTexts(element, texts) {
+  // 查找元素前面的可见文本节点
+  findVisibleTextsBeforeElement(element, texts) {
     if (texts.length >= this.maxResults) return;
     
-    // 向上查找兄弟元素
-    let sibling = element.previousElementSibling;
-    let siblingCount = 0;
+    // 从父元素开始
+    let parent = element.parentElement;
+    if (!parent) return;
     
-    while (sibling && texts.length < this.maxResults && siblingCount < 3) {
-      const text = this.extractTextFromNode(sibling);
-      if (text && !texts.includes(text)) {
-        console.log('[content] 找到相邻元素文本:', text);
-        texts.push(text);
-      }
-      sibling = sibling.previousElementSibling;
-      siblingCount++;
-    }
+    // 获取所有子节点
+    const children = Array.from(parent.childNodes);
+    let foundElement = false;
     
-    // 如果还需要更多文本，尝试查找父元素的前一个兄弟
-    if (texts.length < this.maxResults && element.parentElement && !this.processedNodes.has(element.parentElement)) {
-      this.findAdjacentTexts(element.parentElement, texts);
-    }
-  }
-  
-  extractTextFromNode(element, excludeElement = null) {
-    if (!element || this.processedNodes.has(element)) return '';
-    this.processedNodes.add(element);
-    
-    // 获取元素直接包含的文本（不含子元素的文本）
-    let textContent = '';
-    
-    // 首先尝试获取直接的文本节点
-    for (const node of element.childNodes) {
-      if (node === excludeElement || 
-          (excludeElement && excludeElement.contains && excludeElement.contains(node))) {
+    // 逆序遍历，找到元素后停止
+    for (let i = children.length - 1; i >= 0; i--) {
+      const child = children[i];
+      
+      // 如果找到了当前元素，标记开始收集前面的文本
+      if (child === element) {
+        foundElement = true;
         continue;
       }
       
-      if (node.nodeType === Node.TEXT_NODE) {
-        const nodeText = node.textContent.trim();
-        if (nodeText) textContent += nodeText + ' ';
-      }
-    }
-    
-    // 如果直接文本为空但元素有子元素，尝试收集前面的子元素文本
-    if (!textContent && element.children.length > 0 && excludeElement) {
-      for (const child of element.children) {
-        if (child === excludeElement || 
-            (excludeElement.contains && excludeElement.contains(child)) ||
-            (child.contains && child.contains(excludeElement))) {
-          break; // 到达目标元素，停止收集
+      // 找到元素后，开始收集前面的文本节点
+      if (foundElement) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          const text = child.textContent.trim();
+          if (text && !texts.includes(text)) {
+            texts.push(text);
+            if (texts.length >= this.maxResults) return;
+          }
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          if (isElementVisible(child)) {
+            const textContent = child.textContent.trim();
+            if (textContent && !texts.includes(textContent)) {
+              texts.push(textContent);
+              if (texts.length >= this.maxResults) return;
+            }
+          }
         }
-        
-        const childText = child.textContent.trim();
-        if (childText) textContent += childText + ' ';
       }
     }
     
-    return textContent.trim();
+    // 如果在当前父元素中没有找到足够的文本，继续向上查找
+    if (texts.length < this.maxResults && parent.parentElement) {
+      this.findVisibleTextsBeforeElement(parent, texts);
+    }
+  }
+  
+  // 通过DOM位置查找前面的文本节点
+  findPrecedingTextNodesByPosition(element, texts) {
+    if (texts.length >= this.maxResults) return;
+    
+    console.log('[content] 使用位置查找元素前面的文本...');
+    
+    // 获取元素在页面上的位置
+    const rect = element.getBoundingClientRect();
+    console.log('[content] 目标元素位置:', 
+      'top:', rect.top, 
+      'left:', rect.left, 
+      'bottom:', rect.bottom, 
+      'right:', rect.right
+    );
+    
+    // 查找所有文本节点
+    const textNodes = [];
+    this.getAllTextNodes(document.body, textNodes);
+    console.log('[content] 找到可见文本节点总数:', textNodes.length);
+    
+    // 过滤和排序前面的文本节点
+    const precedingTextNodes = textNodes
+      .filter(nodeInfo => {
+        // 获取节点位置
+        try {
+          const nodeRect = nodeInfo.element.getBoundingClientRect();
+          
+          // 筛选位置合适的节点（在input前面）
+          // 1. 在input上方
+          const isAbove = nodeRect.bottom < rect.top;
+          
+          // 2. 在input左侧且大致在同一高度
+          const isLeft = nodeRect.right < rect.left && 
+                         Math.abs(nodeRect.bottom - rect.bottom) < 100;
+          
+          // 3. 在input附近（考虑表单布局）
+          const isNearby = Math.abs(nodeRect.left - rect.left) < 300 && 
+                           nodeRect.bottom < rect.top + 50 && 
+                           nodeRect.bottom > rect.top - 150;
+          
+          const result = isAbove || isLeft || isNearby;
+          
+          if (result) {
+            console.log('[content] 找到符合位置的文本:', 
+                       nodeInfo.text,
+                       'top:', nodeRect.top, 
+                       'left:', nodeRect.left);
+          }
+          
+          return result;
+        } catch (e) {
+          return false;
+        }
+      })
+      .sort((a, b) => {
+        // 计算到input的距离，优先考虑垂直和水平接近的元素
+        try {
+          const aRect = a.element.getBoundingClientRect();
+          const bRect = b.element.getBoundingClientRect();
+          
+          // 水平距离
+          const aHorizontalDist = Math.abs(aRect.left - rect.left);
+          const bHorizontalDist = Math.abs(bRect.left - rect.left);
+          
+          // 垂直距离（越接近越好）
+          const aVerticalDist = rect.top - aRect.bottom;
+          const bVerticalDist = rect.top - bRect.bottom;
+          
+          // 如果垂直距离差异很大，优先考虑更接近的
+          if (Math.abs(aVerticalDist - bVerticalDist) > 50) {
+            // 如果两者都在上方，优先考虑更近的
+            if (aVerticalDist > 0 && bVerticalDist > 0) {
+              return aVerticalDist - bVerticalDist;
+            }
+          }
+          
+          // 否则，优先考虑水平位置相近的
+          return aHorizontalDist - bHorizontalDist;
+        } catch (e) {
+          return 0;
+        }
+      });
+    
+    console.log('[content] 找到符合位置的文本节点数:', precedingTextNodes.length);
+    
+    // 取最近的几个文本节点
+    let addedCount = 0;
+    for (const nodeInfo of precedingTextNodes) {
+      if (texts.length >= this.maxResults) break;
+      
+      const text = nodeInfo.text.trim();
+      if (text && !texts.includes(text)) {
+        console.log('[content] 通过位置找到文本:', text);
+        texts.push(text);
+        addedCount++;
+      }
+    }
+    
+    console.log('[content] 通过位置添加了', addedCount, '个文本');
+  }
+  
+  // 获取所有文本节点
+  getAllTextNodes(root, results) {
+    // 如果root是元素节点但不可见，则跳过
+    if (root.nodeType === Node.ELEMENT_NODE && !isElementVisible(root)) {
+      return;
+    }
+    
+    // 如果是文本节点且内容有效，收集它
+    if (root.nodeType === Node.TEXT_NODE) {
+      const text = root.textContent.trim();
+      if (text) {
+        const parent = root.parentElement || document.body;
+        if (isElementVisible(parent)) {
+          results.push({
+            text: text,
+            element: parent
+          });
+        }
+      }
+      return;
+    }
+    
+    // 忽略脚本、样式和其他非显示元素
+    if (root.nodeType === Node.ELEMENT_NODE) {
+      const tagName = root.tagName.toUpperCase();
+      if (tagName === 'SCRIPT' || tagName === 'STYLE' || tagName === 'NOSCRIPT' || 
+          tagName === 'META' || tagName === 'LINK' || tagName === 'HEAD') {
+        return;
+      }
+    }
+    
+    // 递归处理所有子节点
+    for (const child of root.childNodes) {
+      this.getAllTextNodes(child, results);
+    }
+  }
+  
+  // 获取父元素中当前元素之前的文本
+  getTextBeforeElementInParent(element, parent) {
+    let result = '';
+    let foundElement = false;
+    
+    // 从后往前遍历父元素的子节点
+    for (let i = parent.childNodes.length - 1; i >= 0; i--) {
+      const node = parent.childNodes[i];
+      
+      if (node === element || node.contains(element)) {
+        foundElement = true;
+        continue;
+      }
+      
+      if (foundElement) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const text = node.textContent.trim();
+          if (text) result = text + ' ' + result;
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          const text = node.textContent.trim();
+          if (text) result = text + ' ' + result;
+        }
+      }
+    }
+    
+    return result.trim();
   }
 }
 
