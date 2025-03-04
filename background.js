@@ -1,3 +1,51 @@
+// 跟踪侧边栏的状态
+let sidebarVisible = false;
+
+// 监听扩展图标点击事件
+chrome.action.onClicked.addListener(async (tab) => {
+  if (!tab.url.startsWith('chrome://') && !tab.url.startsWith('edge://')) {
+    console.log('扩展图标被点击，切换侧边栏显示状态');
+    
+    // 切换侧边栏状态
+    sidebarVisible = !sidebarVisible;
+    
+    // 向当前标签页发送消息
+    try {
+      await chrome.tabs.sendMessage(tab.id, {
+        action: 'toggleSidebar',
+        visible: sidebarVisible
+      });
+      console.log('侧边栏状态已切换为:', sidebarVisible ? '显示' : '隐藏');
+    } catch (error) {
+      console.error('无法切换侧边栏:', error);
+      
+      // 如果消息发送失败，可能是因为内容脚本未加载，尝试注入它
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content_sidebar.js']
+        });
+        
+        // 注入后再次尝试发送消息
+        setTimeout(async () => {
+          try {
+            await chrome.tabs.sendMessage(tab.id, {
+              action: 'toggleSidebar',
+              visible: true
+            });
+            sidebarVisible = true;
+            console.log('已注入并显示侧边栏');
+          } catch (error) {
+            console.error('注入后仍无法显示侧边栏:', error);
+          }
+        }, 500);
+      } catch (error) {
+        console.error('无法注入侧边栏脚本:', error);
+      }
+    }
+  }
+});
+
 // 监听来自弹出窗口的消息
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'extractFields') {

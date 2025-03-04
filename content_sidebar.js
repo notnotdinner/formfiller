@@ -1,6 +1,11 @@
 // 侧边栏注入脚本
 console.log('正在注入表单填写助手侧边栏...');
 
+// 跟踪侧边栏状态和元素
+let sidebarVisible = false;
+let sidebarContainer = null;
+let toggleButton = null;
+
 // 创建侧边栏容器
 function createSidebar() {
   // 删除任何已存在的侧边栏
@@ -10,10 +15,10 @@ function createSidebar() {
   }
 
   // 创建主容器
-  const sidebarContainer = document.createElement('div');
+  sidebarContainer = document.createElement('div');
   sidebarContainer.id = 'form-filler-sidebar-container';
   
-  // 设置样式
+  // 设置样式 - 初始状态为隐藏
   sidebarContainer.style.cssText = `
     position: fixed;
     top: 0;
@@ -27,6 +32,8 @@ function createSidebar() {
     display: block;
     border-left: 1px solid #ddd;
     overflow: hidden;
+    transform: translateX(100%); /* 初始隐藏 */
+    transition: transform 0.3s ease;
   `;
 
   // 创建iframe
@@ -57,13 +64,13 @@ function createSidebar() {
   `;
 
   // 创建关闭/收起按钮
-  const toggleButton = document.createElement('button');
+  toggleButton = document.createElement('button');
   toggleButton.id = 'form-filler-sidebar-toggle';
-  toggleButton.innerText = '<<';
+  toggleButton.innerText = '>>';  // 初始为隐藏状态
   toggleButton.style.cssText = `
-    position: absolute;
+    position: fixed;
     top: 10px;
-    left: -30px;
+    right: 0;
     background-color: #1a73e8;
     color: white;
     border: none;
@@ -72,6 +79,7 @@ function createSidebar() {
     cursor: pointer;
     z-index: 2147483647;
     opacity: 0.8;
+    transition: right 0.3s ease;
   `;
 
   // 添加拖动功能
@@ -96,16 +104,8 @@ function createSidebar() {
   }
 
   // 切换侧边栏可见性
-  let isVisible = true;
   toggleButton.addEventListener('click', function() {
-    if (isVisible) {
-      sidebarContainer.style.transform = 'translateX(100%)';
-      toggleButton.innerText = '>>';
-    } else {
-      sidebarContainer.style.transform = 'translateX(0)';
-      toggleButton.innerText = '<<';
-    }
-    isVisible = !isVisible;
+    toggleSidebar();
   });
 
   // 添加元素到页面
@@ -114,17 +114,61 @@ function createSidebar() {
   document.body.appendChild(sidebarContainer);
   document.body.appendChild(toggleButton);
 
-  console.log('表单填写助手侧边栏已注入');
-  return { iframe, sidebarContainer };
+  console.log('表单填写助手侧边栏已注入，初始状态：隐藏');
+  return { iframe, sidebarContainer, toggleButton };
+}
+
+// 切换侧边栏的显示/隐藏
+function toggleSidebar(forceState) {
+  if (sidebarContainer === null) {
+    createSidebar();
+  }
+  
+  // 如果提供了强制状态，则使用它；否则切换当前状态
+  if (forceState !== undefined) {
+    sidebarVisible = forceState;
+  } else {
+    sidebarVisible = !sidebarVisible;
+  }
+  
+  if (sidebarVisible) {
+    // 显示侧边栏
+    sidebarContainer.style.transform = 'translateX(0)';
+    toggleButton.innerText = '<<';
+    toggleButton.style.right = '600px';  // 根据侧边栏宽度调整
+  } else {
+    // 隐藏侧边栏
+    sidebarContainer.style.transform = 'translateX(100%)';
+    toggleButton.innerText = '>>';
+    toggleButton.style.right = '0';
+  }
+  
+  console.log('侧边栏状态已切换为:', sidebarVisible ? '显示' : '隐藏');
 }
 
 // 在页面加载完成后注入侧边栏
-window.addEventListener('load', createSidebar);
+window.addEventListener('load', function() {
+  createSidebar();
+  // 初始状态为隐藏，不显示
+});
 
 // 如果页面已加载完成，立即注入
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
   createSidebar();
 }
+
+// 监听来自background.js的消息
+chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
+  console.log('侧边栏收到消息:', message);
+  
+  if (message.action === 'toggleSidebar') {
+    toggleSidebar(message.visible);
+    sendResponse({success: true, visible: sidebarVisible});
+    return true;
+  }
+  
+  return false;
+});
 
 // 监听来自iframe的消息
 window.addEventListener('message', function(event) {
@@ -166,13 +210,7 @@ function injectCustomStyles() {
       transition: transform 0.3s ease;
     }
     #form-filler-sidebar-toggle {
-      transition: left 0.3s ease;
-    }
-    #form-filler-sidebar-container.collapsed {
-      transform: translateX(100%);
-    }
-    #form-filler-sidebar-container.collapsed + #form-filler-sidebar-toggle {
-      left: -30px;
+      transition: right 0.3s ease;
     }
   `;
   document.head.appendChild(style);
