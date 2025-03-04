@@ -32,6 +32,17 @@
       "matches": ["<all_urls>"],
       "js": ["login.js", "content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_sidebar.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["popup.html", "popup.css", "popup.js", "images/*"],
+      "matches": ["<all_urls>"]
     }
   ]
 } 

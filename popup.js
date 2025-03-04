@@ -1,7 +1,65 @@
 console.log('popup.js 加载中...');
 
+// 判断当前是否为侧边栏模式
+const isSidebarMode = window.location.search.includes('sidebar=true') || 
+                      (window.parent !== window);
+
+// 设置全局变量用于通信                    
+window.formFillerSidebar = {
+  mode: isSidebarMode ? 'sidebar' : 'popup',
+  ready: false
+};
+
 document.addEventListener('DOMContentLoaded', function() {
   console.log('[初始化] ===== 扩展弹出窗口加载 =====');
+  console.log('当前模式:', isSidebarMode ? '侧边栏模式' : 'Popup模式');
+  
+  // 设置文档标题以便调试
+  if (isSidebarMode) {
+    document.title = '表单填写助手 - 侧边栏模式';
+    document.documentElement.classList.add('sidebar-mode');
+  } else {
+    document.documentElement.classList.add('popup-mode');
+  }
+  
+  // 在侧边栏模式下监听来自父窗口的消息
+  if (isSidebarMode) {
+    window.addEventListener('message', function(event) {
+      // 确保消息来源安全 - 在侧边栏模式下是父窗口
+      if (event.source !== window.parent) {
+        console.log('忽略非父窗口消息');
+        return;
+      }
+      
+      console.log('收到父窗口消息:', event.data);
+      const message = event.data;
+      
+      if (message && message.type === 'formFieldsResponse') {
+        // 处理获取到的表单字段数据
+        console.log('收到表单字段数据:', message);
+        if (message.success) {
+          displayFormFields(message.fields);
+        } else {
+          console.error('获取表单字段失败:', message.error);
+          updateStatus('获取表单字段失败: ' + (message.error || '未知错误'), 'error');
+        }
+      }
+    });
+    
+    // 通知父窗口侧边栏已准备好
+    setTimeout(function() {
+      try {
+        window.formFillerSidebar.ready = true;
+        window.parent.postMessage({
+          type: 'sidebarReady',
+          from: 'formFiller'
+        }, '*');
+        console.log('已通知父窗口侧边栏准备就绪');
+      } catch (error) {
+        console.error('无法通知父窗口:', error);
+      }
+    }, 500);
+  }
   
   // 获取DOM元素
   const textInput = document.getElementById('textInput');
@@ -55,6 +113,43 @@ document.addEventListener('DOMContentLoaded', function() {
     updateStatus('正在分析页面表单和文本...', '');
     extractResult.innerHTML = '<p class="placeholder">处理中，请稍候...</p>';
     
+    if (isSidebarMode) {
+      // 在侧边栏模式下，直接向父窗口请求表单字段
+      try {
+        window.parent.postMessage({
+          type: 'getFormFields',
+          from: 'formFiller'
+        }, '*');
+        console.log('已向父窗口请求表单字段');
+      } catch (error) {
+        console.error('请求表单字段失败:', error);
+        updateStatus('无法与页面通信，请刷新页面重试', 'error');
+      }
+      
+      // 异步调用后台脚本进行提取
+      chrome.runtime.sendMessage(
+        { action: 'extractFields', text: text },
+        function(response) {
+          if (chrome.runtime.lastError) {
+            console.error('连接后台脚本失败:', chrome.runtime.lastError.message);
+            updateStatus('无法连接到后台服务，请刷新扩展', 'error');
+            return;
+          }
+          
+          if (response && response.success) {
+            processExtractedData(response.data, text);
+          } else {
+            extractResult.innerHTML = '<p class="placeholder">提取失败，请重试</p>';
+            updateStatus(response?.error || '提取失败，请重试', 'error');
+            fillButton.disabled = true;
+          }
+        }
+      );
+      
+      return;
+    }
+    
+    // 对于popup模式，使用原来的逻辑
     // 获取当前标签页
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       if (!tabs || !tabs[0]) {
@@ -313,14 +408,9 @@ document.addEventListener('DOMContentLoaded', function() {
     clearLoginForm();
   });
 
-  // 点击模态框外部关闭
-  window.addEventListener('click', function(event) {
-    if (event.target === loginModal) {
-      loginModal.style.display = 'none';
-      clearLoginForm();
-    }
-  });
-
+  // 点击模态框外部不关闭
+  // 移除了原有的点击外部关闭功能，保证窗口始终显示
+  
   // 提交登录表单
   submitLogin.addEventListener('click', function() {
     const username = usernameInput.value.trim();
@@ -1142,5 +1232,24 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
       console.error('找不到测试按钮');
     }
+  }
+
+  // 新函数：处理提取的数据
+  function processExtractedData(data, originalText) {
+    extractedData = data;
+    
+    // 保存到本地存储
+    chrome.storage.local.set({
+      lastText: originalText,
+      lastExtractedData: extractedData
+    });
+    
+    // 显示提取结果
+    displayExtractedData(extractedData);
+    
+    // 启用填写按钮
+    fillButton.disabled = false;
+    
+    updateStatus('信息提取成功！', 'success');
   }
 }); 
