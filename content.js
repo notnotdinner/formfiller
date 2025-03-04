@@ -48,6 +48,78 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     return true;
   }
   
+  // 处理登录请求
+  if (request.action === 'login') {
+    console.log('[content] 接收到登录请求');
+    
+    window.loginManager.login(request.credentials)
+      .then(success => {
+        sendResponse({
+          success: success,
+          message: success ? '登录成功' : '登录失败',
+          timestamp: new Date().toISOString()
+        });
+      })
+      .catch(error => {
+        sendResponse({
+          success: false,
+          message: '登录过程中出错: ' + error.message,
+          error: error.toString()
+        });
+      });
+    
+    // 返回true表示将异步发送响应
+    return true;
+  }
+  
+  // 处理登出请求
+  if (request.action === 'logout') {
+    console.log('[content] 接收到登出请求');
+    
+    window.loginManager.logout();
+    sendResponse({
+      success: true,
+      message: '已成功登出',
+      timestamp: new Date().toISOString()
+    });
+    
+    // 返回true表示将异步发送响应
+    return true;
+  }
+  
+  // 处理登录状态检查请求
+  if (request.action === 'checkLoginStatus') {
+    console.log('[content] 接收到检查登录状态请求');
+    
+    const isLoggedIn = window.loginManager.checkLoginStatus();
+    sendResponse({
+      success: true,
+      isLoggedIn: isLoggedIn,
+      message: isLoggedIn ? '用户已登录' : '用户未登录',
+      timestamp: new Date().toISOString()
+    });
+    
+    // 返回true表示将异步发送响应
+    return true;
+  }
+  
+  // 处理自动填充登录表单请求
+  if (request.action === 'autoFillLoginForm') {
+    console.log('[content] 接收到自动填充登录表单请求');
+    
+    const elements = getAllInputElements();
+    const result = window.loginManager.autoFillLoginForm(elements);
+    
+    sendResponse({
+      success: result,
+      message: result ? '成功填充登录表单' : '无法填充登录表单',
+      timestamp: new Date().toISOString()
+    });
+    
+    // 返回true表示将异步发送响应
+    return true;
+  }
+  
   if (request.action === 'ping') {
     console.log('[content] 收到ping请求');
     
