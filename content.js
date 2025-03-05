@@ -1121,25 +1121,26 @@ function addXPathButtonsToInputs() {
   inputs.forEach((input, index) => {
     // 创建按钮
     const button = document.createElement('button');
-    // 使用SVG图标替代文本
-    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="white" stroke="white">
-      <path d="M12 1.95l2.76 6.9h7.19l-5.82 4.95 2.2 7.2-6.33-4.65-6.36 4.65 2.23-7.2-5.82-4.95h7.19z"/>
-    </svg>`;
+    
+    // 使用内联的星星图片
+    button.innerHTML = '';
     button.title = '点击自动填充此表单元素';
     button.style.cssText = `
       font-size: 11px;
-      padding: 3px 5px;
+      padding: 2px 5px;
       margin-left: 5px;
-      background: #4285f4;
-      color: white;
+      background: #4285f4 url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAAsTAAALEwEAmpwYAAABTUlEQVR4nGNgGLRAWU3jv7KaxsXKahoe5OhXVtP4DwI5OTmMymoaC0jRD9I7H6QXZgApBqAbjG4zmguwGwL3ynPQ44GBgYEhJT8P5JV/yjkdYC+ANCvnVMB5Rk4HmDQIDPY7sAFKDNDg2YkJIPWfGRgYrKFe+QTiWYDE8zD9ID7IgE8MA/4zomnEZogdw4D/IAYjI6MpTAII/AcZ9B9qO0w9I9SAzwwwA6Y8fQeyYD4DA0M7mgH/oS4QVVPVQDfAG2rAAqgBHmhu9UbTvwA5DMBxoKSiwsDAwAAyIB2LF86jue09ugHoXvDG8MI11AAQALnuItQLF5EMuA+VXQA1YD6aAQtgBiiraTxHMsAYzYCN6Hp5eXkZldU07kO9AdIPCqTNUBfEQQ2bjqZfF5qQNkMNs0USr4eK6aK54T8skcBcQXFCYqACAAZMxfAJOwMGAAAAAElFTkSuQmCC') no-repeat center center;
+      background-size: 16px 16px;
+      color: transparent;
       border: none;
       border-radius: 3px;
       cursor: pointer;
       position: relative;
       z-index: 9999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 25px;
+      height: 25px;
+      min-width: 25px;
+      min-height: 25px;
     `;
     
     // 添加点击事件
