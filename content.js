@@ -1192,13 +1192,30 @@ function addXPathButtonsToInputs() {
           console.log('[content] 从popup获取的文本框内容:', content);
           
           // 将文本封装成JSON格式
-          const textData = {
-            beforeTexts: texts.before || [],
-            afterTexts: texts.after || []
+          const body = {
+            before_texts: texts.before || [],
+            after_texts: texts.after || [],
+            content: content
           };
+
+          // 发送POST请求到服务务器
+          fetch('https://a.reotrip.com/ai/extract_form_fields/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+          })
+          .then(response => response.json())
+          .then(data => {
+            console.log('[content] 服务器响应:', data);
+          })
+          .catch(error => {
+            console.error('[content] 请求失败:', error);
+          });
           
           // 转换为JSON字符串
-          const jsonData = JSON.stringify(textData, null, 2);
+          const jsonData = JSON.stringify(body, null, 2);
           
           console.log('[content] 文本数据JSON格式:', jsonData);
         } else {
