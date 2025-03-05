@@ -91,13 +91,31 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'checkLoginStatus') {
     console.log('[content] 接收到检查登录状态请求');
     
-    const isLoggedIn = window.loginManager.checkLoginStatus();
-    sendResponse({
-      success: true,
-      isLoggedIn: isLoggedIn,
-      message: isLoggedIn ? '用户已登录' : '用户未登录',
-      timestamp: new Date().toISOString()
-    });
+    // 异步检查登录状态
+    window.loginManager.checkLoginStatus()
+      .then(isLoggedIn => {
+        // 从credentials获取用户名
+        let username = null;
+        if (isLoggedIn && window.loginManager.credentials) {
+          username = window.loginManager.credentials.username;
+        }
+        
+        sendResponse({
+          success: true,
+          isLoggedIn: isLoggedIn,
+          username: username,
+          message: isLoggedIn ? '用户已登录' : '用户未登录',
+          timestamp: new Date().toISOString()
+        });
+      })
+      .catch(error => {
+        console.error('[content] 检查登录状态时出错:', error);
+        sendResponse({
+          success: false,
+          error: error.toString(),
+          message: '检查登录状态时出错'
+        });
+      });
     
     // 返回true表示将异步发送响应
     return true;
@@ -139,6 +157,45 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       message: 'Content脚本已加载',
       info: info
     });
+    
+    // 返回true表示将异步发送响应
+    return true;
+  }
+  
+  // 处理登录状态更新请求
+  if (request.action === 'updateLoginState') {
+    console.log('[content] 接收到更新登录状态请求');
+    
+    try {
+      // 直接更新loginManager的状态
+      if (request.loginState) {
+        window.loginManager.isLoggedIn = request.loginState.isLoggedIn;
+        window.loginManager.lastLoginTime = request.loginState.lastLoginTime;
+        window.loginManager.credentials = {
+          username: request.loginState.userIdentifier,
+          password: request.loginState.password
+        };
+        
+        console.log('[content] 登录状态已更新为:', window.loginManager.isLoggedIn ? '已登录' : '未登录');
+        
+        sendResponse({
+          success: true,
+          message: '登录状态已更新'
+        });
+      } else {
+        console.error('[content] 收到的登录状态数据无效');
+        sendResponse({
+          success: false,
+          message: '登录状态数据无效'
+        });
+      }
+    } catch (error) {
+      console.error('[content] 更新登录状态时出错:', error);
+      sendResponse({
+        success: false,
+        error: error.toString()
+      });
+    }
     
     // 返回true表示将异步发送响应
     return true;
@@ -1191,33 +1248,74 @@ function addXPathButtonsToInputs() {
           const content = response.content || '';
           console.log('[content] 从popup获取的文本框内容:', content);
           
-          // 将文本封装成JSON格式
-          const body = {
-            before_texts: texts.before || [],
-            after_texts: texts.after || [],
-            content: content
-          };
-
-          // 发送POST请求到服务务器
-          fetch('https://a.reotrip.com/ai/extract_form_fields/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(body)
-          })
-          .then(response => response.json())
-          .then(data => {
-            console.log('[content] 服务器响应:', data);
-          })
-          .catch(error => {
-            console.error('[content] 请求失败:', error);
-          });
+          // 异步检查登录状态
+          window.loginManager.checkLoginStatus()
+            .then(isLoggedIn => {
+              if (!isLoggedIn) {
+                console.error('[content] 用户未登录，无法发送请求');
+                // 通知popup显示登录提示
+                chrome.runtime.sendMessage({
+                  action: 'showLoginRequired',
+                  message: '请先登录后再提取字段'
+                });
+                return;
+              }
+              
+              // 用户已登录，继续执行
+              console.log('[content] 用户已登录，继续请求');
+              
+              // 将文本封装成JSON格式
+              const body = {
+                before_texts: texts.before || [],
+                after_texts: texts.after || [],
+                content: content
+              };
           
-          // 转换为JSON字符串
-          const jsonData = JSON.stringify(body, null, 2);
+              // 获取认证头
+              const authHeaders = window.loginManager.getAuthHeaders();
+              console.log('[content] 认证头信息:', authHeaders);
+              
+              // 创建完整的请求头
+              const headers = {
+                'Content-Type': 'application/json',
+                ...authHeaders
+              };
+              
+              console.log('[content] 发送请求头:', headers);
           
-          console.log('[content] 文本数据JSON格式:', jsonData);
+              // 发送POST请求到服务务器
+              fetch('https://a.reotrip.com/ai/extract_form_fields/', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(body)
+              })
+              .then(response => {
+                // 检查响应状态
+                if (!response.ok) {
+                  if (response.status === 403) {
+                    console.error('[content] 认证失败：请先登录');
+                    // 可以在这里触发登录流程
+                    return Promise.reject(new Error('认证错误：请先登录'));
+                  }
+                  return Promise.reject(new Error(`服务器响应错误 ${response.status}`));
+                }
+                return response.json();
+              })
+              .then(data => {
+                console.log('[content] 服务器响应:', data);
+              })
+              .catch(error => {
+                console.error('[content] 请求失败:', error);
+              });
+          
+              // 转换为JSON字符串
+              const jsonData = JSON.stringify(body, null, 2);
+              
+              console.log('[content] 文本数据JSON格式:', jsonData);
+            })
+            .catch(error => {
+              console.error('[content] 检查登录状态时出错:', error);
+            });
         } else {
           console.error('[content] 获取文本框内容失败:', response ? response.error : '无响应');
         }

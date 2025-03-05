@@ -234,12 +234,31 @@ button:disabled {
   border-radius: 4px;
   font-size: 16px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.3s;
   min-width: 100px;
   text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* 登录按钮高亮样式 */
+.login-button.highlight {
+  background-color: #d93025;
+  animation: pulse 1.5s infinite;
+  box-shadow: 0 0 10px rgba(217, 48, 37, 0.6);
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .login-button:hover, .refresh-button.header-button:hover {

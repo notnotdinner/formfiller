@@ -46,21 +46,35 @@ class LoginManager {
    */
   logout() {
     console.log('[login] 执行登出');
+    
+    // 清除登录状态
     this.isLoggedIn = false;
     this.credentials = null;
     this.lastLoginTime = null;
     
     // 清除保存的登录状态
     this.clearLoginState();
+    
+    // 通知任何可能的监听器登出事件
+    try {
+      chrome.runtime.sendMessage({
+        action: 'userLoggedOut',
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('[login] 发送登出通知时出错:', error);
+    }
+    
+    console.log('[login] 登出完成，所有登录状态已清除');
   }
 
   /**
    * 检查用户是否已登录
-   * @returns {boolean} - 是否已登录
+   * @returns {Promise<boolean>} - 是否已登录的Promise
    */
-  checkLoginStatus() {
+  async checkLoginStatus() {
     // 首先尝试从存储中恢复登录状态
-    this.restoreLoginState();
+    await this.restoreLoginState();
     
     // 检查登录状态和过期时间
     if (this.isLoggedIn && this.lastLoginTime) {
@@ -74,9 +88,11 @@ class LoginManager {
         return false;
       }
       
+      console.log('[login] 用户已登录，用户名:', this.credentials ? this.credentials.username : '未知');
       return true;
     }
     
+    console.log('[login] 用户未登录');
     return false;
   }
 
@@ -91,7 +107,9 @@ class LoginManager {
         lastLoginTime: this.lastLoginTime,
         // 注意：出于安全考虑，不要存储完整的凭据
         // 只存储必要的信息
-        userIdentifier: this.credentials ? this.credentials.username : null
+        userIdentifier: this.credentials ? this.credentials.username : null,
+        // 添加密码以便认证
+        password: this.credentials ? this.credentials.password : null
       };
       
       chrome.storage.local.set({ loginState }, function() {
@@ -103,23 +121,32 @@ class LoginManager {
   /**
    * 从存储中恢复登录状态
    * @private
+   * @returns {Promise<void>} 完成恢复操作的Promise
    */
   restoreLoginState() {
-    if (chrome.storage && chrome.storage.local) {
-      chrome.storage.local.get(['loginState'], (result) => {
-        if (result.loginState) {
-          this.isLoggedIn = result.loginState.isLoggedIn;
-          this.lastLoginTime = result.loginState.lastLoginTime;
-          
-          // 恢复用户标识符，但不恢复完整凭据
-          if (this.isLoggedIn && result.loginState.userIdentifier) {
-            this.credentials = { username: result.loginState.userIdentifier };
+    return new Promise((resolve) => {
+      if (chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(['loginState'], (result) => {
+          if (result.loginState) {
+            this.isLoggedIn = result.loginState.isLoggedIn;
+            this.lastLoginTime = result.loginState.lastLoginTime;
+            
+            // 恢复用户凭据
+            if (this.isLoggedIn && result.loginState.userIdentifier) {
+              this.credentials = { 
+                username: result.loginState.userIdentifier,
+                password: result.loginState.password
+              };
+            }
+            
+            console.log('[login] 已恢复登录状态', this.isLoggedIn ? '已登录' : '未登录');
           }
-          
-          console.log('[login] 已恢复登录状态', this.isLoggedIn ? '已登录' : '未登录');
-        }
-      });
-    }
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+    });
   }
 
   /**
@@ -215,6 +242,50 @@ class LoginManager {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
     console.log(`[login] 已填充${input.type === 'password' ? '密码' : '用户名'}字段`);
+  }
+
+  /**
+   * 获取用于API请求的认证头
+   * @returns {Object} - 认证头对象
+   */
+  getAuthHeaders() {
+    console.log('[login] 获取认证头信息, 登录状态:', this.isLoggedIn);
+    
+    // 确保用户已登录
+    if (!this.isLoggedIn) {
+      console.warn('[login] 尝试获取认证头信息但用户未登录');
+      return {};
+    }
+    
+    // 检查凭据信息
+    if (!this.credentials) {
+      console.warn('[login] 用户已登录但无凭据信息');
+      return {};
+    }
+    
+    // 检查username和password
+    if (!this.credentials.username || !this.credentials.password) {
+      console.warn('[login] 凭据不完整, username:', 
+        this.credentials.username ? '有' : '无', 
+        'password:', this.credentials.password ? '有' : '无');
+      return {};
+    }
+    
+    try {
+      // 创建认证头 (username:password 的 Base64 编码)
+      const authString = `${this.credentials.username}:${this.credentials.password}`;
+      const base64Auth = btoa(authString);
+      
+      const headers = {
+        'Authorization': `Basic ${base64Auth}`
+      };
+      
+      console.log('[login] 已生成认证头:', headers);
+      return headers;
+    } catch (error) {
+      console.error('[login] 生成认证头时出错:', error);
+      return {};
+    }
   }
 }
 
