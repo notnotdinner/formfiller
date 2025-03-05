@@ -97,6 +97,32 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
+  // 添加消息监听器，响应content.js的请求
+  chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+    console.log('[popup] 收到消息:', request);
+    
+    // 处理获取textInput内容的请求
+    if (request.action === 'getTextInputContent') {
+      try {
+        const textInput = document.getElementById('textInput');
+        const content = textInput ? textInput.value.trim() : '';
+        
+        console.log('[popup] 发送textInput内容:', content);
+        sendResponse({
+          success: true,
+          content: content
+        });
+      } catch (error) {
+        console.error('[popup] 获取textInput内容时出错:', error);
+        sendResponse({
+          success: false,
+          error: error.toString()
+        });
+      }
+      return true; // 保持消息通道开放以进行异步响应
+    }
+  });
+  
   // 检查是否已登录
   checkLoginStatus();
   

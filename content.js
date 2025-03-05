@@ -1182,16 +1182,29 @@ function addXPathButtonsToInputs() {
 
       console.log(contentHTML);
 
-    // 将文本封装成JSON格式
-    const textData = {
-      beforeTexts: texts.before || [],
-      afterTexts: texts.after || []
-    };
-    
-    // 转换为JSON字符串
-    const jsonData = JSON.stringify(textData, null, 2);
-    
-    console.log('[content] 文本数据JSON格式:', jsonData);
+      // 不要尝试直接获取textInput元素，因为content.js和popup.js运行在不同的环境
+      // 而是通过消息传递请求textInput的内容
+      chrome.runtime.sendMessage({
+        action: 'getTextInputContent'
+      }, function(response) {
+        if (response && response.success) {
+          const content = response.content || '';
+          console.log('[content] 从popup获取的文本框内容:', content);
+          
+          // 将文本封装成JSON格式
+          const textData = {
+            beforeTexts: texts.before || [],
+            afterTexts: texts.after || []
+          };
+          
+          // 转换为JSON字符串
+          const jsonData = JSON.stringify(textData, null, 2);
+          
+          console.log('[content] 文本数据JSON格式:', jsonData);
+        } else {
+          console.error('[content] 获取文本框内容失败:', response ? response.error : '无响应');
+        }
+      });
     });
     
     // 判断元素是否已显示，避免重复添加
