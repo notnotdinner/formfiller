@@ -1121,11 +1121,14 @@ function addXPathButtonsToInputs() {
   inputs.forEach((input, index) => {
     // 创建按钮
     const button = document.createElement('button');
-    button.innerText = 'Autofill';
+    // 使用SVG图标替代文本
+    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="white" stroke="white">
+      <path d="M12 1.95l2.76 6.9h7.19l-5.82 4.95 2.2 7.2-6.33-4.65-6.36 4.65 2.23-7.2-5.82-4.95h7.19z"/>
+    </svg>`;
     button.title = '点击自动填充此表单元素';
     button.style.cssText = `
       font-size: 11px;
-      padding: 2px 5px;
+      padding: 3px 5px;
       margin-left: 5px;
       background: #4285f4;
       color: white;
@@ -1134,6 +1137,9 @@ function addXPathButtonsToInputs() {
       cursor: pointer;
       position: relative;
       z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     `;
     
     // 添加点击事件
