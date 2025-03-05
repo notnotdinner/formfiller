@@ -1304,7 +1304,21 @@ function addXPathButtonsToInputs() {
               .then(data => {
                 console.log('[content] 服务器响应:', data);
 
+                // 获取提取到的字段值
+                const extractedValue = data.result.value;
                 
+                // 找到对应的input元素并填充值
+                if (input && extractedValue) {
+                  input.value = extractedValue;
+                  
+                  // 触发input事件,确保其他依赖此输入框的逻辑能正常执行
+                  const event = new Event('input', { bubbles: true });
+                  input.dispatchEvent(event);
+                  
+                  console.log('[content] 已自动填充字段值:', extractedValue);
+                } else {
+                  console.warn('[content] 无法填充字段值:', extractedValue);
+                }
               })
               .catch(error => {
                 console.error('[content] 请求失败:', error);
