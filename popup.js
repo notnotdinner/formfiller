@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
-  // 检查登录状态
+  // 检查是否已登录
   checkLoginStatus();
   
   // 绑定提取按钮事件
@@ -488,31 +488,13 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(data => {
       console.log('登录成功:', data);
       
-      // 使用统一的loginState格式保存登录状态
-      const loginState = {
+      // 保存登录状态和令牌
+      chrome.storage.local.set({
         isLoggedIn: true,
-        userIdentifier: data.username || username,
-        password: password, // 需要保存密码用于认证
-        lastLoginTime: Date.now(),
-        token: data.token || ''
-      };
-      
-      // 保存登录状态
-      chrome.storage.local.set({ loginState }, function() {
-        console.log('[popup] 登录状态已保存:', loginState);
-        
-        // 通知当前活动标签页的content脚本更新登录状态
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-          if (tabs[0]) {
-            chrome.tabs.sendMessage(tabs[0].id, {
-              action: 'updateLoginState',
-              loginState: loginState
-            }, function(response) {
-              console.log('[popup] 通知content脚本更新登录状态:', response);
-            });
-          }
-        });
-        
+        username: data.username || username,
+        token: data.token || '',
+        loginTime: Date.now()
+      }, function() {
         // 更新UI状态
         loginMessage.textContent = '登录成功！';
         loginMessage.style.color = '#0f9d58';
@@ -521,7 +503,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
           loginModal.style.display = 'none';
           clearLoginForm();
-          updateLoginStatusUI(true, loginState.userIdentifier);
+          updateLoginStatusUI(true, data.username || username);
         }, 1000);
       });
     })
@@ -535,31 +517,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // 检查登录状态
   function checkLoginStatus() {
-    console.log('[popup] 开始检查登录状态');
-    
-    // 直接从storage中读取登录状态，不依赖content.js
-    chrome.storage.local.get(['loginState'], function(result) {
-      console.log('[popup] 获取到storage中的登录状态:', result);
+    // 通过消息传递调用content.js中的loginManager
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (!tabs[0]) {
+        console.error('无法获取当前标签页');
+        updateLoginStatusUI(false);
+        return;
+      }
       
-      if (result.loginState && result.loginState.isLoggedIn) {
-        // 检查登录是否过期
-        const now = Date.now();
-        const lastLoginTime = result.loginState.lastLoginTime || 0;
-        const expirationTime = 24 * 60 * 60 * 1000; // 24小时
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: 'checkLoginStatus'
+      }, function(response) {
+        if (chrome.runtime.lastError) {
+          console.error('检查登录状态时出错:', chrome.runtime.lastError.message);
+          updateLoginStatusUI(false);
+          return;
+        }
         
-        if (now - lastLoginTime < expirationTime) {
-          console.log('[popup] 用户已登录，用户名:', result.loginState.userIdentifier);
-          updateLoginStatusUI(true, result.loginState.userIdentifier);
+        if (response && response.success) {
+          updateLoginStatusUI(response.isLoggedIn, response.username);
         } else {
-          console.log('[popup] 登录已过期');
-          // 清除过期的登录状态
-          chrome.storage.local.remove(['loginState']);
           updateLoginStatusUI(false);
         }
-      } else {
-        console.log('[popup] 用户未登录或登录状态无效');
-        updateLoginStatusUI(false);
-      }
+      });
     });
   }
 

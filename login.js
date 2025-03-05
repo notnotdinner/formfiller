@@ -46,26 +46,12 @@ class LoginManager {
    */
   logout() {
     console.log('[login] 执行登出');
-    
-    // 清除登录状态
     this.isLoggedIn = false;
     this.credentials = null;
     this.lastLoginTime = null;
     
     // 清除保存的登录状态
     this.clearLoginState();
-    
-    // 通知任何可能的监听器登出事件
-    try {
-      chrome.runtime.sendMessage({
-        action: 'userLoggedOut',
-        timestamp: Date.now()
-      });
-    } catch (error) {
-      console.error('[login] 发送登出通知时出错:', error);
-    }
-    
-    console.log('[login] 登出完成，所有登录状态已清除');
   }
 
   /**
@@ -249,43 +235,20 @@ class LoginManager {
    * @returns {Object} - 认证头对象
    */
   getAuthHeaders() {
-    console.log('[login] 获取认证头信息, 登录状态:', this.isLoggedIn);
-    
     // 确保用户已登录
-    if (!this.isLoggedIn) {
+    if (!this.isLoggedIn || !this.credentials) {
       console.warn('[login] 尝试获取认证头信息但用户未登录');
       return {};
     }
     
-    // 检查凭据信息
-    if (!this.credentials) {
-      console.warn('[login] 用户已登录但无凭据信息');
-      return {};
-    }
+    // 假设服务器接受Basic认证
+    // 创建认证头 (username:password 的 Base64 编码)
+    const authString = `${this.credentials.username}:${this.credentials.password}`;
+    const base64Auth = btoa(authString);
     
-    // 检查username和password
-    if (!this.credentials.username || !this.credentials.password) {
-      console.warn('[login] 凭据不完整, username:', 
-        this.credentials.username ? '有' : '无', 
-        'password:', this.credentials.password ? '有' : '无');
-      return {};
-    }
-    
-    try {
-      // 创建认证头 (username:password 的 Base64 编码)
-      const authString = `${this.credentials.username}:${this.credentials.password}`;
-      const base64Auth = btoa(authString);
-      
-      const headers = {
-        'Authorization': `Basic ${base64Auth}`
-      };
-      
-      console.log('[login] 已生成认证头:', headers);
-      return headers;
-    } catch (error) {
-      console.error('[login] 生成认证头时出错:', error);
-      return {};
-    }
+    return {
+      'Authorization': `Basic ${base64Auth}`
+    };
   }
 }
 

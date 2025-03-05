@@ -1303,6 +1303,8 @@ function addXPathButtonsToInputs() {
               })
               .then(data => {
                 console.log('[content] 服务器响应:', data);
+
+                
               })
               .catch(error => {
                 console.error('[content] 请求失败:', error);
